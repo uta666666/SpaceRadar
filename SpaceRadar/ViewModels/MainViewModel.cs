@@ -14,6 +14,7 @@ public class MainViewModel : IDisposable
     private readonly FolderScanService _scanService = new();
     private readonly Stack<FolderItem> _navigationStack = new();
     private CancellationTokenSource? _cts;
+    private FolderItem? _rootFolder;
 
     // --- Properties ---
     public ReactivePropertySlim<FolderItem?> CurrentFolder { get; } = new();
@@ -24,11 +25,17 @@ public class MainViewModel : IDisposable
     public ReactivePropertySlim<string> TotalSizeText { get; } = new(string.Empty);
     public ReactivePropertySlim<bool> CanNavigateUp { get; } = new(false);
     public ReactivePropertySlim<bool> IsDragOver { get; } = new(false);
+    public ReactivePropertySlim<bool> IsTopNVisible { get; } = new(false);
+    public ReactivePropertySlim<int> TopNCount { get; } = new(10);
+    public ObservableCollection<TopNFileItem> TopNFiles { get; } = new();
 
     // --- Commands ---
     public AsyncReactiveCommand SelectFolderCommand { get; }
     public ReactiveCommand NavigateUpCommand { get; }
     public ReactiveCommand<FolderItem?> OpenInExplorerCommand { get; }
+    public ReactiveCommand ToggleTopNCommand { get; }
+    public ReactiveCommand<string> SetTopNCountCommand { get; }
+    public ReactiveCommand<TopNFileItem?> OpenTopNInExplorerCommand { get; }
 
     public MainViewModel()
     {
@@ -41,6 +48,26 @@ public class MainViewModel : IDisposable
 
         OpenInExplorerCommand = new ReactiveCommand<FolderItem?>()
             .WithSubscribe(OpenInExplorer);
+
+        ToggleTopNCommand = new ReactiveCommand()
+            .WithSubscribe(ToggleTopN);
+
+        SetTopNCountCommand = new ReactiveCommand<string>().WithSubscribe(s =>
+        {
+            if (int.TryParse(s, out var count))
+            {
+                TopNCount.Value = count;
+                BuildTopNFiles();
+            }
+        });
+
+        OpenTopNInExplorerCommand = new ReactiveCommand<TopNFileItem?>().WithSubscribe(item =>
+        {
+            if (item == null) return;
+            var dir = Path.GetDirectoryName(item.Path);
+            if (dir == null || !Directory.Exists(dir)) return;
+            Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+        });
 
         _scanService.ScanProgressChanged += path =>
         {
@@ -115,7 +142,10 @@ public class MainViewModel : IDisposable
         try
         {
             var root = await _scanService.ScanAsync(path, _cts.Token);
+            _rootFolder = root;
             await LoadFolderAsync(root);
+            if (IsTopNVisible.Value)
+                BuildTopNFiles();
         }
         catch (OperationCanceledException)
         {
@@ -186,6 +216,51 @@ public class MainViewModel : IDisposable
         return Task.CompletedTask;
     }
 
+    private void ToggleTopN()
+    {
+        IsTopNVisible.Value = !IsTopNVisible.Value;
+        if (IsTopNVisible.Value)
+            BuildTopNFiles();
+    }
+
+    private static IEnumerable<FolderItem> FlattenFiles(FolderItem folder)
+    {
+        foreach (var child in folder.Children)
+        {
+            if (!child.IsDirectory)
+                yield return child;
+            else
+                foreach (var f in FlattenFiles(child))
+                    yield return f;
+        }
+    }
+
+    private void BuildTopNFiles()
+    {
+        TopNFiles.Clear();
+        if (_rootFolder == null) return;
+
+        var files = FlattenFiles(_rootFolder)
+            .OrderByDescending(f => f.Size)
+            .Take(TopNCount.Value)
+            .ToList();
+
+        long maxSize = files.Count > 0 ? files[0].Size : 1;
+
+        for (int i = 0; i < files.Count; i++)
+        {
+            TopNFiles.Add(new TopNFileItem
+            {
+                Rank = i + 1,
+                Name = files[i].Name,
+                Path = files[i].Path,
+                Size = files[i].Size,
+                SizeText = FileSizeFormatter.FormatSize(files[i].Size),
+                BarWidthRatio = maxSize > 0 ? (double)files[i].Size / maxSize : 0
+            });
+        }
+    }
+
     public void Dispose()
     {
         _cts?.Cancel();
@@ -197,8 +272,13 @@ public class MainViewModel : IDisposable
         TotalSizeText.Dispose();
         CanNavigateUp.Dispose();
         IsDragOver.Dispose();
+        IsTopNVisible.Dispose();
+        TopNCount.Dispose();
         SelectFolderCommand.Dispose();
         NavigateUpCommand.Dispose();
         OpenInExplorerCommand.Dispose();
+        ToggleTopNCommand.Dispose();
+        SetTopNCountCommand.Dispose();
+        OpenTopNInExplorerCommand.Dispose();
     }
 }

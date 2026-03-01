@@ -68,12 +68,31 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="SlimProgressBar" TargetType="ProgressBar">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Rectangle Fill="{TemplateBinding Background}" RadiusX="2" RadiusY="2" />
+                            <Rectangle
+                                x:Name="PART_Indicator"
+                                HorizontalAlignment="Left"
+                                Fill="{TemplateBinding Foreground}"
+                                RadiusX="2"
+                                RadiusY="2" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="56" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="32" />
         </Grid.RowDefinitions>
 
@@ -85,6 +104,7 @@
             BorderThickness="0,0,0,1">
             <Grid Margin="12,0">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -103,8 +123,21 @@
                     Content="⬆ 上へ"
                     Style="{StaticResource ToolbarButton}" />
 
+                <Button Grid.Column="2" Command="{Binding ToggleTopNCommand}" Content="📊 Top N">
+                    <Button.Style>
+                        <Style BasedOn="{StaticResource ToolbarButton}" TargetType="Button">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsTopNVisible.Value}" Value="True">
+                                    <Setter Property="Background" Value="#45475A" />
+                                    <Setter Property="BorderBrush" Value="#89DCEB" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
                 <TextBlock
-                    Grid.Column="2"
+                    Grid.Column="3"
                     Margin="12,0"
                     VerticalAlignment="Center"
                     FontSize="12"
@@ -113,7 +146,7 @@
                     TextTrimming="CharacterEllipsis" />
 
                 <TextBlock
-                    Grid.Column="3"
+                    Grid.Column="4"
                     Margin="8,0"
                     VerticalAlignment="Center"
                     FontSize="13"
@@ -236,9 +269,138 @@
             </Border>
         </Grid>
 
-        <!--  ステータスバー  -->
+        <!--  Top N ファイルパネル  -->
         <Border
             Grid.Row="2"
+            Background="#181825"
+            BorderBrush="#313244"
+            BorderThickness="0,1,0,0"
+            MaxHeight="220"
+            Visibility="{Binding IsTopNVisible.Value, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="36" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!--  ヘッダー  -->
+                <Grid Grid.Row="0" Margin="12,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        Grid.Column="0"
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Foreground="#A6ADC8">
+                        <TextBlock.Text>
+                            <MultiBinding StringFormat="📊 大きいファイル Top {0}">
+                                <Binding Path="TopNCount.Value" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                        <Button
+                            Command="{Binding SetTopNCountCommand}"
+                            CommandParameter="10"
+                            Content="10"
+                            Style="{StaticResource ToolbarButton}" />
+                        <Button
+                            Command="{Binding SetTopNCountCommand}"
+                            CommandParameter="20"
+                            Content="20"
+                            Style="{StaticResource ToolbarButton}" />
+                        <Button
+                            Command="{Binding SetTopNCountCommand}"
+                            CommandParameter="50"
+                            Content="50"
+                            Style="{StaticResource ToolbarButton}" />
+                    </StackPanel>
+                </Grid>
+
+                <!--  ファイルリスト  -->
+                <ListBox
+                    Grid.Row="1"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ItemContainerStyle="{StaticResource FolderListItem}"
+                    ItemsSource="{Binding TopNFiles}"
+                    VirtualizingPanel.IsVirtualizing="True">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem
+                                Command="{Binding PlacementTarget.DataContext.OpenTopNInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                Header="📂 エクスプローラーで開く" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="72" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Margin="0,0,4,0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    Foreground="#6C7086"
+                                    Text="{Binding Rank}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Text="📄" />
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="#CDD6F4"
+                                        Text="{Binding Name}"
+                                        TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        FontSize="10"
+                                        Foreground="#6C7086"
+                                        Text="{Binding Path}"
+                                        TextTrimming="CharacterEllipsis"
+                                        ToolTip="{Binding Path}" />
+                                </StackPanel>
+                                <ProgressBar
+                                    Grid.Column="3"
+                                    Margin="8,0"
+                                    Height="4"
+                                    VerticalAlignment="Center"
+                                    Background="#313244"
+                                    Foreground="#89DCEB"
+                                    Maximum="1"
+                                    Minimum="0"
+                                    Style="{StaticResource SlimProgressBar}"
+                                    Value="{Binding BarWidthRatio}" />
+                                <TextBlock
+                                    Grid.Column="4"
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    Foreground="#89DCEB"
+                                    Text="{Binding SizeText}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!--  ステータスバー  -->
+        <Border
+            Grid.Row="3"
             Background="#11111B"
             BorderBrush="#313244"
             BorderThickness="0,1,0,0">
@@ -293,7 +455,7 @@
         <!--  D&D オーバーレイ  -->
         <Border
             Grid.Row="0"
-            Grid.RowSpan="3"
+            Grid.RowSpan="4"
             Background="#CC1E1E2E"
             BorderBrush="#89DCEB"
             BorderThickness="3"
