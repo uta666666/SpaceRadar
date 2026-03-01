@@ -23,6 +23,7 @@ public class MainViewModel : IDisposable
     public ReactivePropertySlim<string> BreadcrumbPath { get; } = new(string.Empty);
     public ReactivePropertySlim<string> TotalSizeText { get; } = new(string.Empty);
     public ReactivePropertySlim<bool> CanNavigateUp { get; } = new(false);
+    public ReactivePropertySlim<bool> IsDragOver { get; } = new(false);
 
     // --- Commands ---
     public AsyncReactiveCommand SelectFolderCommand { get; }
@@ -62,6 +63,12 @@ public class MainViewModel : IDisposable
 
         _navigationStack.Clear();
         await ScanFolderAsync(dialog.SelectedPath);
+    }
+
+    public async Task ScanDroppedFolderAsync(string path)
+    {
+        _navigationStack.Clear();
+        await ScanFolderAsync(path);
     }
 
     public async Task DrillDownAsync(FolderItem item)
@@ -189,6 +196,7 @@ public class MainViewModel : IDisposable
         BreadcrumbPath.Dispose();
         TotalSizeText.Dispose();
         CanNavigateUp.Dispose();
+        IsDragOver.Dispose();
         SelectFolderCommand.Dispose();
         NavigateUpCommand.Dispose();
         OpenInExplorerCommand.Dispose();

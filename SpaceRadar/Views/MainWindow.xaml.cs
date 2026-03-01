@@ -164,4 +164,53 @@ public partial class MainWindow : Window
             _ = _viewModel.DrillDownAsync(item);
         }
     }
+
+    private void Window_DragEnter(object sender, System.Windows.DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop))
+        {
+            e.Effects = System.Windows.DragDropEffects.Copy;
+            _viewModel.IsDragOver.Value = true;
+        }
+        else
+        {
+            e.Effects = System.Windows.DragDropEffects.None;
+        }
+        e.Handled = true;
+    }
+
+    private void Window_DragOver(object sender, System.Windows.DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop)
+            ? System.Windows.DragDropEffects.Copy
+            : System.Windows.DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void Window_DragLeave(object sender, System.Windows.DragEventArgs e)
+    {
+        // WPF では子要素に入っただけでも DragLeave が発火するため
+        // ウィンドウ境界の外に出た場合のみオーバーレイを非表示にする
+        var pos = e.GetPosition(this);
+        if (pos.X < 0 || pos.Y < 0 || pos.X > ActualWidth || pos.Y > ActualHeight)
+            _viewModel.IsDragOver.Value = false;
+    }
+
+    private void Window_Drop(object sender, System.Windows.DragEventArgs e)
+    {
+        _viewModel.IsDragOver.Value = false;
+
+        if (!e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop)) return;
+
+        var paths = (string[])e.Data.GetData(System.Windows.DataFormats.FileDrop);
+        var folder = paths?.FirstOrDefault(System.IO.Directory.Exists);
+
+        if (folder == null)
+        {
+            _viewModel.StatusText.Value = "フォルダーをドロップしてください";
+            return;
+        }
+
+        _ = _viewModel.ScanDroppedFolderAsync(folder);
+    }
 }

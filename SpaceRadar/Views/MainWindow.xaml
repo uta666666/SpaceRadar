@@ -9,11 +9,17 @@
     Title="Space Radar"
     Width="800"
     Height="600"
+    AllowDrop="True"
     Background="#1E1E2E"
+    DragEnter="Window_DragEnter"
+    DragLeave="Window_DragLeave"
+    DragOver="Window_DragOver"
+    Drop="Window_Drop"
     mc:Ignorable="d">
 
     <Window.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
         <Style x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Background" Value="#313244" />
@@ -132,8 +138,8 @@
                 Background="#181825">
                 <scottplot:WpfPlot
                     x:Name="WpfPlot"
-                    Width="450"
-                    Height="450"
+                    Width="400"
+                    Height="400"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Background="#181825" />
@@ -283,6 +289,23 @@
                     Foreground="#6C7086"
                     Text="{Binding StatusText.Value}" />
             </Grid>
+        </Border>
+        <!--  D&D オーバーレイ  -->
+        <Border
+            Grid.Row="0"
+            Grid.RowSpan="3"
+            Background="#CC1E1E2E"
+            BorderBrush="#89DCEB"
+            BorderThickness="3"
+            IsHitTestVisible="False"
+            Visibility="{Binding IsDragOver.Value, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                FontSize="22"
+                FontWeight="Bold"
+                Foreground="#89DCEB"
+                Text="📁 フォルダーをドロップ" />
         </Border>
     </Grid>
 </Window>
