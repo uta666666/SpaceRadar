@@ -1,0 +1,288 @@
+<Window
+    x:Class="SpaceRadar.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="clr-namespace:SpaceRadar.Converters"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:scottplot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+    Title="Space Radar"
+    Width="800"
+    Height="600"
+    Background="#1E1E2E"
+    mc:Ignorable="d">
+
+    <Window.Resources>
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="#313244" />
+            <Setter Property="Foreground" Value="#CDD6F4" />
+            <Setter Property="BorderBrush" Value="#45475A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            Padding="{TemplateBinding Padding}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#45475A" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FolderListItem" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#CDD6F4" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#313244" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#45475A" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="56" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="32" />
+        </Grid.RowDefinitions>
+
+        <!--  ツールバー  -->
+        <Border
+            Grid.Row="0"
+            Background="#181825"
+            BorderBrush="#313244"
+            BorderThickness="0,0,0,1">
+            <Grid Margin="12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button
+                    Grid.Column="0"
+                    Command="{Binding SelectFolderCommand}"
+                    Content="📂 フォルダーを選択"
+                    Style="{StaticResource ToolbarButton}" />
+
+                <Button
+                    Grid.Column="1"
+                    Command="{Binding NavigateUpCommand}"
+                    Content="⬆ 上へ"
+                    Style="{StaticResource ToolbarButton}" />
+
+                <TextBlock
+                    Grid.Column="2"
+                    Margin="12,0"
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Foreground="#A6ADC8"
+                    Text="{Binding BreadcrumbPath.Value}"
+                    TextTrimming="CharacterEllipsis" />
+
+                <TextBlock
+                    Grid.Column="3"
+                    Margin="8,0"
+                    VerticalAlignment="Center"
+                    FontSize="13"
+                    FontWeight="Bold"
+                    Foreground="#89DCEB"
+                    Text="{Binding TotalSizeText.Value}" />
+            </Grid>
+        </Border>
+
+        <!--  メインコンテンツ  -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" MinWidth="300" />
+                <ColumnDefinition Width="5" />
+                <ColumnDefinition Width="*" MinWidth="160" />
+            </Grid.ColumnDefinitions>
+
+            <!--  パイチャート  -->
+            <Border
+                Grid.Column="0"
+                Margin="8,8,0,8"
+                Background="#181825">
+                <scottplot:WpfPlot
+                    x:Name="WpfPlot"
+                    Width="450"
+                    Height="450"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="#181825" />
+            </Border>
+
+            <!--  スプリッター  -->
+            <GridSplitter
+                Grid.Column="1"
+                Width="5"
+                HorizontalAlignment="Stretch"
+                Background="#313244" />
+
+            <!--  フォルダーリスト  -->
+            <Border
+                Grid.Column="2"
+                Margin="0,8,8,8"
+                Background="#181825">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock
+                        Grid.Row="0"
+                        Margin="12,10,12,6"
+                        FontSize="12"
+                        Foreground="#A6ADC8"
+                        Text="フォルダー一覧" />
+
+                    <ListBox
+                        x:Name="FolderListBox"
+                        Grid.Row="1"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ItemContainerStyle="{StaticResource FolderListItem}"
+                        ItemsSource="{Binding DisplayChildren}"
+                        MouseDoubleClick="FolderListBox_MouseDoubleClick"
+                        SelectionChanged="FolderListBox_SelectionChanged">
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem
+                                    Command="{Binding PlacementTarget.DataContext.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                    CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                    Header="📂 エクスプローラーで開く" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="20" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Rectangle
+                                        Grid.Column="0"
+                                        Width="4"
+                                        VerticalAlignment="Stretch"
+                                        Fill="{Binding SliceColorBrush}"
+                                        RadiusX="2"
+                                        RadiusY="2" />
+                                    <TextBlock Grid.Column="1" FontSize="12">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="📄" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsDirectory}" Value="True">
+                                                        <Setter Property="Text" Value="📁" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock
+                                        Grid.Column="2"
+                                        Margin="4,0"
+                                        FontSize="12"
+                                        Foreground="{Binding SliceColorBrush, FallbackValue=#CDD6F4, TargetNullValue=#CDD6F4}"
+                                        Text="{Binding Name}"
+                                        TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        Grid.Column="3"
+                                        VerticalAlignment="Center"
+                                        FontSize="11"
+                                        Foreground="#89DCEB"
+                                        Text="{Binding Size, Converter={StaticResource FileSizeConverter}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!--  ステータスバー  -->
+        <Border
+            Grid.Row="2"
+            Background="#11111B"
+            BorderBrush="#313244"
+            BorderThickness="0,1,0,0">
+            <Grid Margin="12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!--  スキャン中インジケーター  -->
+                <StackPanel
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Margin="0,0,6,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#A6E3A1" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsScanning.Value}" Value="True">
+                                        <Setter Property="Fill" Value="#F38BA8" />
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard RepeatBehavior="Forever">
+                                                    <DoubleAnimation
+                                                        AutoReverse="True"
+                                                        Storyboard.TargetProperty="Opacity"
+                                                        From="1"
+                                                        To="0.2"
+                                                        Duration="0:0:0.6" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                </StackPanel>
+
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    FontSize="11"
+                    Foreground="#6C7086"
+                    Text="{Binding StatusText.Value}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

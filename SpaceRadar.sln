@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.3.11520.95
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceRadar", "SpaceRadar\SpaceRadar.csproj", "{57959034-5CED-ED03-F725-13419EF0025E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceRader.Avalonia", "SpaceRader.Avalonia\SpaceRader.Avalonia.csproj", "{D5CF9321-E4F1-48A5-821B-3183CE00EFAB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Specs", "Specs", "{30EEBF53-808E-43AD-BE45-B68612AC3272}"
+	ProjectSection(SolutionItems) = preProject
+		Specs\spec.md = Specs\spec.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{57959034-5CED-ED03-F725-13419EF0025E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57959034-5CED-ED03-F725-13419EF0025E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57959034-5CED-ED03-F725-13419EF0025E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57959034-5CED-ED03-F725-13419EF0025E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5CF9321-E4F1-48A5-821B-3183CE00EFAB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5CF9321-E4F1-48A5-821B-3183CE00EFAB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5CF9321-E4F1-48A5-821B-3183CE00EFAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5CF9321-E4F1-48A5-821B-3183CE00EFAB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7CAFAE72-72E5-4763-83F6-A2D601170958}
+	EndGlobalSection
+EndGlobal

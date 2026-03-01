@@ -1,0 +1,199 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SpaceRader.Avalonia.ViewModels"
+        xmlns:models="using:SpaceRader.Avalonia.Models"
+        xmlns:converters="using:SpaceRader.Avalonia.Converters"
+        xmlns:scottplot="using:ScottPlot.Avalonia"
+        x:Class="SpaceRader.Avalonia.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Space Radar"
+        Width="1280"
+        Height="800"
+        Background="#1E1E2E">
+
+    <Window.Resources>
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+
+        <ControlTheme x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="#313244" />
+            <Setter Property="Foreground" Value="#CDD6F4" />
+            <Setter Property="BorderBrush" Value="#45475A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <ControlTemplate TargetType="Button">
+                    <Border Padding="{TemplateBinding Padding}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover">
+                <Setter Property="Background" Value="#45475A" />
+            </Style>
+            <Style Selector="^:disabled">
+                <Setter Property="Opacity" Value="0.4" />
+            </Style>
+        </ControlTheme>
+
+        <ControlTheme x:Key="FolderListItem" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#CDD6F4" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background" Value="#313244" />
+            </Style>
+            <Style Selector="^:selected /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background" Value="#45475A" />
+            </Style>
+        </ControlTheme>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Ellipse.scanning">
+            <Setter Property="Fill" Value="#F38BA8" />
+            <Style.Animations>
+                <Animation Duration="0:0:0.6" IterationCount="Infinite" PlaybackDirection="Alternate">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="0.2" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="56,*,32">
+
+        <!--  ツールバー  -->
+        <Border Grid.Row="0"
+                Background="#181825"
+                BorderBrush="#313244"
+                BorderThickness="0,0,0,1">
+            <Grid Margin="12,0" ColumnDefinitions="Auto,Auto,*,Auto">
+                <Button Grid.Column="0"
+                        Command="{Binding SelectFolderCommand}"
+                        Content="📂 フォルダーを選択"
+                        Theme="{StaticResource ToolbarButton}" />
+                <Button Grid.Column="1"
+                        Command="{Binding NavigateUpCommand}"
+                        Content="⬆ 上へ"
+                        Theme="{StaticResource ToolbarButton}" />
+                <TextBlock Grid.Column="2"
+                           Margin="12,0"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="#A6ADC8"
+                           Text="{Binding BreadcrumbPath}"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="3"
+                           Margin="8,0"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="Bold"
+                           Foreground="#89DCEB"
+                           Text="{Binding TotalSizeText}" />
+            </Grid>
+        </Border>
+
+        <!--  メインコンテンツ  -->
+        <Grid Grid.Row="1" ColumnDefinitions="4*,5,*">
+
+            <!--  パイチャート  -->
+            <Border Grid.Column="0"
+                    Margin="8,8,0,8"
+                    Background="#181825">
+                <scottplot:AvaPlot x:Name="AvaPlot"
+                                   Width="600"
+                                   Height="600"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+            </Border>
+
+            <!--  スプリッター  -->
+            <GridSplitter Grid.Column="1"
+                          Background="#313244"
+                          ResizeDirection="Columns" />
+
+            <!--  フォルダーリスト  -->
+            <Border Grid.Column="2"
+                    Margin="0,8,8,8"
+                    Background="#181825">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0"
+                               Margin="12,10,12,6"
+                               FontSize="12"
+                               Foreground="#A6ADC8"
+                               Text="フォルダー一覧" />
+                    <ListBox x:Name="FolderListBox"
+                             Grid.Row="1"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ItemContainerTheme="{StaticResource FolderListItem}"
+                             ItemsSource="{Binding DisplayChildren}"
+                             SelectionChanged="FolderListBox_SelectionChanged"
+                             DoubleTapped="FolderListBox_DoubleTapped">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:FolderItem">
+                                <Grid Margin="0,2" ColumnDefinitions="8,20,*,Auto">
+                                    <Border Grid.Column="0"
+                                            Width="4"
+                                            Background="{Binding SliceColorBrush}"
+                                            CornerRadius="2"
+                                            VerticalAlignment="Stretch" />
+                                    <TextBlock Grid.Column="1"
+                                               FontSize="12"
+                                               Text="{Binding Icon}" />
+                                    <TextBlock Grid.Column="2"
+                                               Margin="4,0"
+                                               FontSize="12"
+                                               Foreground="{Binding SliceColorBrush}"
+                                               Text="{Binding Name}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="3"
+                                               VerticalAlignment="Center"
+                                               FontSize="11"
+                                               Foreground="#89DCEB"
+                                               Text="{Binding Size, Converter={StaticResource FileSizeConverter}}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!--  ステータスバー  -->
+        <Border Grid.Row="2"
+                Background="#11111B"
+                BorderBrush="#313244"
+                BorderThickness="0,1,0,0">
+            <Grid Margin="12,0" ColumnDefinitions="Auto,*">
+                <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                    <Ellipse Width="8"
+                             Height="8"
+                             Margin="0,0,6,0"
+                             Fill="#A6E3A1"
+                             Classes.scanning="{Binding IsScanning}" />
+                </StackPanel>
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           FontSize="11"
+                           Foreground="#6C7086"
+                           Text="{Binding StatusText}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
