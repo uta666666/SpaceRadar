@@ -60,6 +60,7 @@
             <Setter Property="Foreground" Value="#CDD6F4" />
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#313244" />
@@ -75,7 +76,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
                         <Grid>
-                            <Rectangle Fill="{TemplateBinding Background}" RadiusX="2" RadiusY="2" />
+                            <Rectangle x:Name="PART_Track" Fill="{TemplateBinding Background}" RadiusX="2" RadiusY="2" />
                             <Rectangle
                                 x:Name="PART_Indicator"
                                 HorizontalAlignment="Left"
