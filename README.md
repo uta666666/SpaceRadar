@@ -7,7 +7,7 @@
 
 ## 📸 スクリーンショット
 
-![screenshot](assets/screenshot.png)
+![screenshot](Assets/screenshot.png)
 
 ---
 
