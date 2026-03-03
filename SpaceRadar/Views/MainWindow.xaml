@@ -90,11 +90,12 @@
         </Style>
     </Window.Resources>
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="56" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="0" />
+            <RowDefinition Height="0" />
             <RowDefinition Height="32" />
         </Grid.RowDefinitions>
 
@@ -271,13 +272,21 @@
             </Border>
         </Grid>
 
+        <!--  Top N リサイズスプリッター  -->
+        <GridSplitter
+            Grid.Row="2"
+            Height="5"
+            HorizontalAlignment="Stretch"
+            Background="#313244"
+            ResizeDirection="Rows"
+            Visibility="{Binding IsTopNVisible.Value, Converter={StaticResource BoolToVisibility}}" />
+
         <!--  Top N ファイルパネル  -->
         <Border
-            Grid.Row="2"
+            Grid.Row="3"
             Background="#181825"
             BorderBrush="#313244"
             BorderThickness="0,1,0,0"
-            MaxHeight="220"
             Visibility="{Binding IsTopNVisible.Value, Converter={StaticResource BoolToVisibility}}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -421,7 +430,7 @@
 
         <!--  ステータスバー  -->
         <Border
-            Grid.Row="3"
+            Grid.Row="4"
             Background="#11111B"
             BorderBrush="#313244"
             BorderThickness="0,1,0,0">
@@ -476,7 +485,7 @@
         <!--  D&D オーバーレイ  -->
         <Border
             Grid.Row="0"
-            Grid.RowSpan="4"
+            Grid.RowSpan="5"
             Background="#CC1E1E2E"
             BorderBrush="#89DCEB"
             BorderThickness="3"

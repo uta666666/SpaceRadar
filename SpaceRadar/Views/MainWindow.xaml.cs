@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     private readonly MainViewModel _viewModel;
     private Pie? _pie;
     private ScottPlot.Color[] _originalSliceColors = [];
+    private double _topNPanelHeight = 180;
 
     // Catppuccin Mocha palette
     private static readonly System.Drawing.Color[] SliceColors =
@@ -39,7 +40,28 @@ public partial class MainWindow : Window
         SetupPlot();
 
         _viewModel.DisplayChildren.CollectionChanged += (_, _) => RefreshChart();
+        _viewModel.IsTopNVisible.Subscribe(UpdateTopNPanelVisibility);
         Closed += (_, _) => _viewModel.Dispose();
+    }
+
+    private void UpdateTopNPanelVisibility(bool visible)
+    {
+        if (visible)
+        {
+            RootGrid.RowDefinitions[2].Height = new GridLength(5);
+            RootGrid.RowDefinitions[3].MinHeight = 80;
+            RootGrid.RowDefinitions[3].Height = new GridLength(_topNPanelHeight);
+        }
+        else
+        {
+            if (RootGrid.RowDefinitions[3].ActualHeight > 0)
+            {
+                _topNPanelHeight = RootGrid.RowDefinitions[3].ActualHeight;
+            }
+            RootGrid.RowDefinitions[3].MinHeight = 0;
+            RootGrid.RowDefinitions[2].Height = new GridLength(0);
+            RootGrid.RowDefinitions[3].Height = new GridLength(0);
+        }
     }
 
     private void SetupPlot()
