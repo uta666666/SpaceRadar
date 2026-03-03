@@ -19,6 +19,7 @@
 
     <Window.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter" />
+        <converters:TopNScopeTextConverter x:Key="TopNScopeTextConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
         <Style x:Key="ToolbarButton" TargetType="Button">
@@ -295,8 +296,9 @@
                         FontSize="12"
                         Foreground="#A6ADC8">
                         <TextBlock.Text>
-                            <MultiBinding StringFormat="📊 大きいファイル Top {0}">
+                            <MultiBinding StringFormat="📊 大きいファイル Top {0}{1}">
                                 <Binding Path="TopNCount.Value" />
+                                <Binding Path="TopNCurrentFolderOnly.Value" Converter="{StaticResource TopNScopeTextConverter}" />
                             </MultiBinding>
                         </TextBlock.Text>
                     </TextBlock>
@@ -319,6 +321,24 @@
                             CommandParameter="50"
                             Content="50"
                             Style="{StaticResource ToolbarButton}" />
+                        <Separator
+                            Margin="4,6"
+                            Background="#45475A"
+                            Style="{x:Null}"
+                            Width="1" />
+                        <Button Command="{Binding ToggleTopNScopeCommand}" Content="📁 現在のフォルダーのみ">
+                            <Button.Style>
+                                <Style BasedOn="{StaticResource ToolbarButton}" TargetType="Button">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding TopNCurrentFolderOnly.Value}" Value="True">
+                                            <Setter Property="Background" Value="#45475A" />
+                                            <Setter Property="BorderBrush" Value="#A6E3A1" />
+                                            <Setter Property="Foreground" Value="#A6E3A1" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </StackPanel>
                 </Grid>
 

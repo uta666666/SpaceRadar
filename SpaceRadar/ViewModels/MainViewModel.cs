@@ -26,6 +26,7 @@ public class MainViewModel : IDisposable
     public ReactivePropertySlim<bool> CanNavigateUp { get; } = new(false);
     public ReactivePropertySlim<bool> IsDragOver { get; } = new(false);
     public ReactivePropertySlim<bool> IsTopNVisible { get; } = new(false);
+    public ReactivePropertySlim<bool> TopNCurrentFolderOnly { get; } = new(false);
     public ReactivePropertySlim<int> TopNCount { get; } = new(10);
     public ObservableCollection<TopNFileItem> TopNFiles { get; } = new();
 
@@ -34,6 +35,7 @@ public class MainViewModel : IDisposable
     public ReactiveCommand NavigateUpCommand { get; }
     public ReactiveCommand<FolderItem?> OpenInExplorerCommand { get; }
     public ReactiveCommand ToggleTopNCommand { get; }
+    public ReactiveCommand ToggleTopNScopeCommand { get; }
     public ReactiveCommand<string> SetTopNCountCommand { get; }
     public ReactiveCommand<TopNFileItem?> OpenTopNInExplorerCommand { get; }
 
@@ -51,6 +53,13 @@ public class MainViewModel : IDisposable
 
         ToggleTopNCommand = new ReactiveCommand()
             .WithSubscribe(ToggleTopN);
+
+        ToggleTopNScopeCommand = new ReactiveCommand().WithSubscribe(() =>
+        {
+            TopNCurrentFolderOnly.Value = !TopNCurrentFolderOnly.Value;
+            if (IsTopNVisible.Value)
+                BuildTopNFiles();
+        });
 
         SetTopNCountCommand = new ReactiveCommand<string>().WithSubscribe(s =>
         {
@@ -212,6 +221,10 @@ public class MainViewModel : IDisposable
         }
 
         StatusText.Value = $"完了 — {folder.Children.Count} アイテム";
+
+        if (IsTopNVisible.Value && TopNCurrentFolderOnly.Value)
+            BuildTopNFiles();
+
         return Task.CompletedTask;
     }
 
@@ -237,9 +250,10 @@ public class MainViewModel : IDisposable
     private void BuildTopNFiles()
     {
         TopNFiles.Clear();
-        if (_rootFolder == null) return;
+        var root = TopNCurrentFolderOnly.Value ? CurrentFolder.Value : _rootFolder;
+        if (root == null) return;
 
-        var files = FlattenFiles(_rootFolder)
+        var files = FlattenFiles(root)
             .OrderByDescending(f => f.Size)
             .Take(TopNCount.Value)
             .ToList();
@@ -272,11 +286,13 @@ public class MainViewModel : IDisposable
         CanNavigateUp.Dispose();
         IsDragOver.Dispose();
         IsTopNVisible.Dispose();
+        TopNCurrentFolderOnly.Dispose();
         TopNCount.Dispose();
         SelectFolderCommand.Dispose();
         NavigateUpCommand.Dispose();
         OpenInExplorerCommand.Dispose();
         ToggleTopNCommand.Dispose();
+        ToggleTopNScopeCommand.Dispose();
         SetTopNCountCommand.Dispose();
         OpenTopNInExplorerCommand.Dispose();
     }
