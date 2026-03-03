@@ -78,18 +78,17 @@ public class MainViewModel : IDisposable
 
     private async Task SelectFolderAsync()
     {
-        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            Description = "スキャンするフォルダーを選択してください",
-            UseDescriptionForTitle = true,
-            ShowNewFolderButton = false
+            Title = "スキャンするフォルダーを選択してください",
+            Multiselect = false
         };
 
-        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        if (dialog.ShowDialog() != true)
             return;
 
         _navigationStack.Clear();
-        await ScanFolderAsync(dialog.SelectedPath);
+        await ScanFolderAsync(dialog.FolderName);
     }
 
     public async Task ScanDroppedFolderAsync(string path)
