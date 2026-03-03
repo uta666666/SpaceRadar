@@ -77,7 +77,7 @@ public partial class MainWindow : Window
 
         double[] values = children.Select(c => (double)c.Size).ToArray();
         var pie = WpfPlot.Plot.Add.Pie(values);
-        pie.SliceLabelDistance = 0;
+        pie.SliceLabelDistance = 0.6;
         pie.LineWidth = 2;
         pie.LineColor = ScottPlot.Color.FromHex("#1E1E2E");
         pie.ExplodeFraction = 0.05;
@@ -91,6 +91,14 @@ public partial class MainWindow : Window
             };
             string sizeText = FileSizeFormatter.FormatSize(children[i].Size);
             pie.Slices[i].LegendText = $"{children[i].Name}  ({sizeText})";
+
+            double sliceRatio = (double)children[i].Size / totalSize;
+            pie.Slices[i].Label = sliceRatio >= 0.05
+                ? $"{sizeText}\n[{sliceRatio:P1}]"
+                : string.Empty;
+            pie.Slices[i].LabelFontSize = 11;
+            pie.Slices[i].LabelBold = true;
+            pie.Slices[i].LabelFontColor = ScottPlot.Color.FromHex("#1E1E2E");
 
             var mediaColor = System.Windows.Media.Color.FromArgb(color.A, color.R, color.G, color.B);
             children[i].SliceColorBrush = new System.Windows.Media.SolidColorBrush(mediaColor);
@@ -182,6 +190,13 @@ public partial class MainWindow : Window
         {
             _ = _viewModel.DrillDownAsync(item);
         }
+    }
+
+    protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.Escape)
+            FolderListBox.SelectedIndex = -1;
     }
 
     private void Window_DragEnter(object sender, System.Windows.DragEventArgs e)
