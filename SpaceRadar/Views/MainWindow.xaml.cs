@@ -114,7 +114,10 @@ public partial class MainWindow : Window
 
     private void FolderListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_pie == null || _originalSliceColors.Length == 0) return;
+        if (_pie == null || _originalSliceColors.Length == 0)
+        {
+            return;
+        }
 
         int selectedIndex = FolderListBox.SelectedIndex;
         for (int i = 0; i < _pie.Slices.Count && i < _originalSliceColors.Length; i++)
@@ -132,7 +135,10 @@ public partial class MainWindow : Window
 
     private int GetSliceIndexAt(MouseButtonEventArgs e)
     {
-        if (_pie == null || _viewModel.DisplayChildren.Count == 0) return -1;
+        if (_pie == null || _viewModel.DisplayChildren.Count == 0)
+        {
+            return -1;
+        }
 
         var pos = e.GetPosition(WpfPlot);
         var pixel = new ScottPlot.Pixel((float)pos.X, (float)pos.Y);
@@ -143,7 +149,10 @@ public partial class MainWindow : Window
 
         // パイの外側・中心付近のクリックは無視
         double dist = Math.Sqrt(x * x + y * y);
-        if (dist > 1.15 || dist < 0.01) return -1;
+        if (dist > 1.15 || dist < 0.01)
+        {
+            return -1;
+        }
 
         // ScottPlot 5 のデフォルト: Rotation=0 → 12時から時計回り
         // Math.Atan2 は反時計回り・右=0° なので変換する
@@ -157,7 +166,9 @@ public partial class MainWindow : Window
         {
             double sliceAngle = _pie.Slices[i].Value / total * 360.0;
             if (chartAngle < cumulative + sliceAngle)
+            {
                 return i;
+            }
             cumulative += sliceAngle;
         }
         return -1;
@@ -166,7 +177,10 @@ public partial class MainWindow : Window
     private void WpfPlot_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         int index = GetSliceIndexAt(e);
-        if (index < 0) return;
+        if (index < 0)
+        {
+            return;
+        }
 
         FolderListBox.SelectedIndex = index;
         FolderListBox.ScrollIntoView(FolderListBox.SelectedItem);
@@ -174,14 +188,22 @@ public partial class MainWindow : Window
 
     private void WpfPlot_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Left) return;
+        if (e.ChangedButton != MouseButton.Left)
+        {
+            return;
+        }
 
         int index = GetSliceIndexAt(e);
-        if (index < 0) return;
+        if (index < 0)
+        {
+            return;
+        }
 
         var item = _viewModel.DisplayChildren[index];
         if (item.IsDirectory)
+        {
             _ = _viewModel.DrillDownAsync(item);
+        }
     }
 
     private void FolderListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -196,7 +218,9 @@ public partial class MainWindow : Window
     {
         base.OnKeyDown(e);
         if (e.Key == Key.Escape)
+        {
             FolderListBox.SelectedIndex = -1;
+        }
     }
 
     private void Window_DragEnter(object sender, System.Windows.DragEventArgs e)

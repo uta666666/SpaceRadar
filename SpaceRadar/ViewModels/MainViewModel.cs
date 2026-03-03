@@ -58,7 +58,9 @@ public class MainViewModel : IDisposable
         {
             TopNCurrentFolderOnly.Value = !TopNCurrentFolderOnly.Value;
             if (IsTopNVisible.Value)
+            {
                 BuildTopNFiles();
+            }
         });
 
         SetTopNCountCommand = new ReactiveCommand<string>().WithSubscribe(s =>
@@ -72,9 +74,15 @@ public class MainViewModel : IDisposable
 
         OpenTopNInExplorerCommand = new ReactiveCommand<TopNFileItem?>().WithSubscribe(item =>
         {
-            if (item == null) return;
+            if (item == null)
+            {
+                return;
+            }
             var dir = Path.GetDirectoryName(item.Path);
-            if (dir == null || !Directory.Exists(dir)) return;
+            if (dir == null || !Directory.Exists(dir))
+            {
+                return;
+            }
             Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
         });
 
@@ -94,7 +102,9 @@ public class MainViewModel : IDisposable
         };
 
         if (dialog.ShowDialog() != true)
+        {
             return;
+        }
 
         _navigationStack.Clear();
         await ScanFolderAsync(dialog.FolderName);
@@ -108,10 +118,15 @@ public class MainViewModel : IDisposable
 
     public async Task DrillDownAsync(FolderItem item)
     {
-        if (!item.IsDirectory) return;
+        if (!item.IsDirectory)
+        {
+            return;
+        }
 
         if (CurrentFolder.Value != null)
+        {
             _navigationStack.Push(CurrentFolder.Value);
+        }
 
         // 既にスキャン済みの子フォルダーにドリルダウン
         await LoadFolderAsync(item);
@@ -120,18 +135,26 @@ public class MainViewModel : IDisposable
     private void NavigateUp()
     {
         if (_navigationStack.TryPop(out var parent))
+        {
             _ = LoadFolderAsync(parent);
+        }
     }
 
     private void OpenInExplorer(FolderItem? item)
     {
-        if (item == null) return;
+        if (item == null)
+        {
+            return;
+        }
 
         var path = Directory.Exists(item.Path)
             ? item.Path
             : Path.GetDirectoryName(item.Path);
 
-        if (path == null || !Directory.Exists(path)) return;
+        if (path == null || !Directory.Exists(path))
+        {
+            return;
+        }
 
         Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true });
     }
@@ -153,7 +176,9 @@ public class MainViewModel : IDisposable
             _rootFolder = root;
             await LoadFolderAsync(root);
             if (IsTopNVisible.Value)
+            {
                 BuildTopNFiles();
+            }
         }
         catch (OperationCanceledException)
         {
@@ -223,7 +248,9 @@ public class MainViewModel : IDisposable
         StatusText.Value = $"完了 — {folder.Children.Count} アイテム";
 
         if (IsTopNVisible.Value && TopNCurrentFolderOnly.Value)
+        {
             BuildTopNFiles();
+        }
 
         return Task.CompletedTask;
     }
@@ -232,7 +259,9 @@ public class MainViewModel : IDisposable
     {
         IsTopNVisible.Value = !IsTopNVisible.Value;
         if (IsTopNVisible.Value)
+        {
             BuildTopNFiles();
+        }
     }
 
     private static IEnumerable<FolderItem> FlattenFiles(FolderItem folder)
@@ -240,10 +269,16 @@ public class MainViewModel : IDisposable
         foreach (var child in folder.Children)
         {
             if (!child.IsDirectory)
+            {
                 yield return child;
+            }
             else
+            {
                 foreach (var f in FlattenFiles(child))
+                {
                     yield return f;
+                }
+            }
         }
     }
 
@@ -251,7 +286,10 @@ public class MainViewModel : IDisposable
     {
         TopNFiles.Clear();
         var root = TopNCurrentFolderOnly.Value ? CurrentFolder.Value : _rootFolder;
-        if (root == null) return;
+        if (root == null)
+        {
+            return;
+        }
 
         var files = FlattenFiles(root)
             .OrderByDescending(f => f.Size)

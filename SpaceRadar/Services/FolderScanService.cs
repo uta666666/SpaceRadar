@@ -61,7 +61,9 @@ public class FolderScanService
         IntPtr handle = FindFirstFileW(searchPath, out var findData);
 
         if (handle == INVALID_HANDLE_VALUE)
+        {
             return item;
+        }
 
         try
         {
@@ -70,7 +72,10 @@ public class FolderScanService
                 cancellationToken.ThrowIfCancellationRequested();
 
                 string name = findData.cFileName;
-                if (name == "." || name == "..") continue;
+                if (name == "." || name == "..")
+                {
+                    continue;
+                }
 
                 string fullPath = System.IO.Path.Combine(path, name);
                 bool isDir = (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
