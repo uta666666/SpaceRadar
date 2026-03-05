@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private Pie? _pie;
     private ScottPlot.Color[] _originalSliceColors = [];
     private double _topNPanelHeight = 180;
+    private bool _ignoreNextMouseLeftButtonDown = false;
 
     // Catppuccin Mocha palette
     private static readonly System.Drawing.Color[] SliceColors =
@@ -39,7 +40,14 @@ public partial class MainWindow : Window
 
         SetupPlot();
 
-        _viewModel.DisplayChildren.CollectionChanged += (_, _) => RefreshChart();
+        _viewModel.DisplayChildren.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            {
+                FolderListBox.SelectedIndex = -1;
+            }
+            RefreshChart();
+        };
         _viewModel.IsTopNVisible.Subscribe(UpdateTopNPanelVisibility);
         Closed += (_, _) => _viewModel.Dispose();
     }
@@ -51,16 +59,23 @@ public partial class MainWindow : Window
             RootGrid.RowDefinitions[2].Height = new GridLength(5);
             RootGrid.RowDefinitions[3].MinHeight = 80;
             RootGrid.RowDefinitions[3].Height = new GridLength(_topNPanelHeight);
+            Height += _topNPanelHeight + 5;
         }
         else
         {
-            if (RootGrid.RowDefinitions[3].ActualHeight > 0)
+            var currentPanelHeight = RootGrid.RowDefinitions[3].ActualHeight;
+            var currentSplitterHeight = RootGrid.RowDefinitions[2].ActualHeight;
+            if (currentPanelHeight > 0)
             {
-                _topNPanelHeight = RootGrid.RowDefinitions[3].ActualHeight;
+                _topNPanelHeight = currentPanelHeight;
             }
             RootGrid.RowDefinitions[3].MinHeight = 0;
             RootGrid.RowDefinitions[2].Height = new GridLength(0);
             RootGrid.RowDefinitions[3].Height = new GridLength(0);
+            if (currentPanelHeight > 0)
+            {
+                Height = Math.Max(400, Height - currentPanelHeight - currentSplitterHeight);
+            }
         }
     }
 
@@ -198,6 +213,12 @@ public partial class MainWindow : Window
 
     private void WpfPlot_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_ignoreNextMouseLeftButtonDown)
+        {
+            _ignoreNextMouseLeftButtonDown = false;
+            return;
+        }
+
         int index = GetSliceIndexAt(e);
         if (index < 0)
         {
@@ -224,6 +245,7 @@ public partial class MainWindow : Window
         var item = _viewModel.DisplayChildren[index];
         if (item.IsDirectory)
         {
+            _ignoreNextMouseLeftButtonDown = true;
             _ = _viewModel.DrillDownAsync(item);
         }
     }

@@ -7,7 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:scottplot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
     Title="Space Radar"
-    Width="800"
+    Width="900"
     Height="600"
     AllowDrop="True"
     Background="#1E1E2E"
@@ -76,7 +76,11 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
                         <Grid>
-                            <Rectangle x:Name="PART_Track" Fill="{TemplateBinding Background}" RadiusX="2" RadiusY="2" />
+                            <Rectangle
+                                x:Name="PART_Track"
+                                Fill="{TemplateBinding Background}"
+                                RadiusX="2"
+                                RadiusY="2" />
                             <Rectangle
                                 x:Name="PART_Indicator"
                                 HorizontalAlignment="Left"
@@ -126,7 +130,10 @@
                     Content="⬆ 上へ"
                     Style="{StaticResource ToolbarButton}" />
 
-                <Button Grid.Column="2" Command="{Binding ToggleTopNCommand}" Content="📊 Top N">
+                <Button
+                    Grid.Column="2"
+                    Command="{Binding ToggleTopNCommand}"
+                    Content="📊 Top N">
                     <Button.Style>
                         <Style BasedOn="{StaticResource ToolbarButton}" TargetType="Button">
                             <Style.Triggers>
@@ -308,7 +315,7 @@
                         <TextBlock.Text>
                             <MultiBinding StringFormat="📊 大きいファイル Top {0}{1}">
                                 <Binding Path="TopNCount.Value" />
-                                <Binding Path="TopNCurrentFolderOnly.Value" Converter="{StaticResource TopNScopeTextConverter}" />
+                                <Binding Converter="{StaticResource TopNScopeTextConverter}" Path="TopNCurrentFolderOnly.Value" />
                             </MultiBinding>
                         </TextBlock.Text>
                     </TextBlock>
@@ -332,10 +339,10 @@
                             Content="50"
                             Style="{StaticResource ToolbarButton}" />
                         <Separator
+                            Width="1"
                             Margin="4,6"
                             Background="#45475A"
-                            Style="{x:Null}"
-                            Width="1" />
+                            Style="{x:Null}" />
                         <Button Command="{Binding ToggleTopNScopeCommand}" Content="📁 現在のフォルダーのみ">
                             <Button.Style>
                                 <Style BasedOn="{StaticResource ToolbarButton}" TargetType="Button">
@@ -406,8 +413,8 @@
                                 </StackPanel>
                                 <ProgressBar
                                     Grid.Column="3"
-                                    Margin="8,0"
                                     Height="4"
+                                    Margin="8,0"
                                     VerticalAlignment="Center"
                                     Background="#313244"
                                     Foreground="#89DCEB"
