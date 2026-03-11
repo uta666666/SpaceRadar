@@ -1,4 +1,6 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +17,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly Func<Task<string?>> _pickFolderAsync;
     private CancellationTokenSource? _cts;
     private FolderItem? _currentFolder;
+    private FolderItem? _rootFolder;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(NavigateUpCommand))]
@@ -32,7 +35,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _totalSizeText = string.Empty;
 
+    [ObservableProperty]
+    private bool _isDragOver;
+
+    [ObservableProperty]
+    private bool _isTopNVisible;
+
+    [ObservableProperty]
+    private bool _topNCurrentFolderOnly;
+
+    [ObservableProperty]
+    private int _topNCount = 10;
+
     public ObservableCollection<FolderItem> DisplayChildren { get; } = [];
+    public ObservableCollection<TopNFileItem> TopNFiles { get; } = [];
 
     public MainWindowViewModel(Func<Task<string?>> pickFolderAsync)
     {
@@ -45,7 +61,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private async Task SelectFolderAsync()
     {
         var path = await _pickFolderAsync();
-        if (path is null) return;
+        if (path is null)
+        {
+            return;
+        }
 
         _navigationStack.Clear();
         await ScanFolderAsync(path);
@@ -55,17 +74,97 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void NavigateUp()
     {
         if (_navigationStack.TryPop(out var parent))
+        {
             _ = LoadFolderAsync(parent);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenInExplorer(FolderItem? item)
+    {
+        if (item == null)
+        {
+            return;
+        }
+
+        var path = Directory.Exists(item.Path)
+            ? item.Path
+            : Path.GetDirectoryName(item.Path);
+
+        if (path == null || !Directory.Exists(path))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true });
+    }
+
+    [RelayCommand]
+    private void ToggleTopN()
+    {
+        IsTopNVisible = !IsTopNVisible;
+        if (IsTopNVisible)
+        {
+            BuildTopNFiles();
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleTopNScope()
+    {
+        TopNCurrentFolderOnly = !TopNCurrentFolderOnly;
+        if (IsTopNVisible)
+        {
+            BuildTopNFiles();
+        }
+    }
+
+    [RelayCommand]
+    private void SetTopNCount(string s)
+    {
+        if (int.TryParse(s, out var count))
+        {
+            TopNCount = count;
+            BuildTopNFiles();
+        }
+    }
+
+    [RelayCommand]
+    private void OpenTopNInExplorer(TopNFileItem? item)
+    {
+        if (item == null)
+        {
+            return;
+        }
+
+        var dir = Path.GetDirectoryName(item.Path);
+        if (dir == null || !Directory.Exists(dir))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
     }
 
     public async Task DrillDownAsync(FolderItem item)
     {
-        if (!item.IsDirectory) return;
+        if (!item.IsDirectory)
+        {
+            return;
+        }
 
         if (_currentFolder != null)
+        {
             _navigationStack.Push(_currentFolder);
+        }
 
         await LoadFolderAsync(item);
+    }
+
+    public async Task ScanDroppedFolderAsync(string path)
+    {
+        _navigationStack.Clear();
+        await ScanFolderAsync(path);
     }
 
     private async Task ScanFolderAsync(string path)
@@ -82,7 +181,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         try
         {
             var root = await _scanService.ScanAsync(path, _cts.Token);
+            _rootFolder = root;
             await LoadFolderAsync(root);
+            if (IsTopNVisible)
+            {
+                BuildTopNFiles();
+            }
         }
         catch (OperationCanceledException)
         {
@@ -117,7 +221,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var rest = dirs.Skip(maxSlices).ToList();
 
         foreach (var d in top)
+        {
             DisplayChildren.Add(d);
+        }
 
         long directFileSize = folder.Children
             .Where(c => !c.IsDirectory)
@@ -147,7 +253,61 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         StatusText = $"完了 — {folder.Children.Count} アイテム";
+
+        if (IsTopNVisible && TopNCurrentFolderOnly)
+        {
+            BuildTopNFiles();
+        }
+
         return Task.CompletedTask;
+    }
+
+    private static IEnumerable<FolderItem> FlattenFiles(FolderItem folder)
+    {
+        foreach (var child in folder.Children)
+        {
+            if (!child.IsDirectory)
+            {
+                yield return child;
+            }
+            else
+            {
+                foreach (var f in FlattenFiles(child))
+                {
+                    yield return f;
+                }
+            }
+        }
+    }
+
+    private void BuildTopNFiles()
+    {
+        TopNFiles.Clear();
+        var root = TopNCurrentFolderOnly ? _currentFolder : _rootFolder;
+        if (root == null)
+        {
+            return;
+        }
+
+        var files = FlattenFiles(root)
+            .OrderByDescending(f => f.Size)
+            .Take(TopNCount)
+            .ToList();
+
+        long maxSize = files.Count > 0 ? files[0].Size : 1;
+
+        for (int i = 0; i < files.Count; i++)
+        {
+            TopNFiles.Add(new TopNFileItem
+            {
+                Rank = i + 1,
+                Name = files[i].Name,
+                Path = files[i].Path,
+                Size = files[i].Size,
+                SizeText = FileSizeFormatter.FormatSize(files[i].Size),
+                BarWidthRatio = maxSize > 0 ? (double)files[i].Size / maxSize : 0
+            });
+        }
     }
 
     public void Dispose()

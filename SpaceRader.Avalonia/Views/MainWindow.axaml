@@ -9,10 +9,12 @@
         Title="Space Radar"
         Width="1280"
         Height="800"
-        Background="#1E1E2E">
+        Background="#1E1E2E"
+        DragDrop.AllowDrop="True">
 
     <Window.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter" />
+        <converters:TopNScopeTextConverter x:Key="TopNScopeTextConverter" />
 
         <ControlTheme x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Background" Value="#313244" />
@@ -30,7 +32,10 @@
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="4">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}" />
                     </Border>
                 </ControlTemplate>
             </Setter>
@@ -55,9 +60,34 @@
                 <Setter Property="Background" Value="#45475A" />
             </Style>
         </ControlTheme>
+
+        <ControlTheme x:Key="SlimProgressBar" TargetType="ProgressBar">
+            <Setter Property="Background" Value="#313244" />
+            <Setter Property="Template">
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid ClipToBounds="True">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="2" />
+                        <Border Name="PART_Indicator"
+                                HorizontalAlignment="Left"
+                                Background="{TemplateBinding Foreground}"
+                                CornerRadius="2" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
     </Window.Resources>
 
     <Window.Styles>
+        <Style Selector="Button.active">
+            <Setter Property="Background" Value="#45475A" />
+            <Setter Property="BorderBrush" Value="#89DCEB" />
+        </Style>
+        <Style Selector="Button.scope-active">
+            <Setter Property="Background" Value="#45475A" />
+            <Setter Property="BorderBrush" Value="#A6E3A1" />
+            <Setter Property="Foreground" Value="#A6E3A1" />
+        </Style>
         <Style Selector="Ellipse.scanning">
             <Setter Property="Fill" Value="#F38BA8" />
             <Style.Animations>
@@ -73,14 +103,14 @@
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="56,*,32">
+    <Grid RowDefinitions="56,*,Auto,Auto,32">
 
         <!--  ツールバー  -->
         <Border Grid.Row="0"
                 Background="#181825"
                 BorderBrush="#313244"
                 BorderThickness="0,0,0,1">
-            <Grid Margin="12,0" ColumnDefinitions="Auto,Auto,*,Auto">
+            <Grid Margin="12,0" ColumnDefinitions="Auto,Auto,Auto,*,Auto">
                 <Button Grid.Column="0"
                         Command="{Binding SelectFolderCommand}"
                         Content="📂 フォルダーを選択"
@@ -89,14 +119,19 @@
                         Command="{Binding NavigateUpCommand}"
                         Content="⬆ 上へ"
                         Theme="{StaticResource ToolbarButton}" />
-                <TextBlock Grid.Column="2"
+                <Button Grid.Column="2"
+                        Command="{Binding ToggleTopNCommand}"
+                        Content="📊 Top N"
+                        Classes.active="{Binding IsTopNVisible}"
+                        Theme="{StaticResource ToolbarButton}" />
+                <TextBlock Grid.Column="3"
                            Margin="12,0"
                            VerticalAlignment="Center"
                            FontSize="12"
                            Foreground="#A6ADC8"
                            Text="{Binding BreadcrumbPath}"
                            TextTrimming="CharacterEllipsis" />
-                <TextBlock Grid.Column="3"
+                <TextBlock Grid.Column="4"
                            Margin="8,0"
                            VerticalAlignment="Center"
                            FontSize="13"
@@ -143,6 +178,13 @@
                              ItemsSource="{Binding DisplayChildren}"
                              SelectionChanged="FolderListBox_SelectionChanged"
                              DoubleTapped="FolderListBox_DoubleTapped">
+                        <ListBox.ContextMenu>
+                            <ContextMenu x:CompileBindings="False">
+                                <MenuItem Header="📂 エクスプローラーで開く"
+                                          Command="{Binding OpenInExplorerCommand}"
+                                          CommandParameter="{Binding $parent[ContextMenu].PlacementTarget.SelectedItem}" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="models:FolderItem">
                                 <Grid Margin="0,2" ColumnDefinitions="8,20,*,Auto">
@@ -173,8 +215,124 @@
             </Border>
         </Grid>
 
+        <!--  Top N リサイズスプリッター  -->
+        <GridSplitter Grid.Row="2"
+                      Height="5"
+                      HorizontalAlignment="Stretch"
+                      Background="#313244"
+                      ResizeDirection="Rows"
+                      IsVisible="{Binding IsTopNVisible}" />
+
+        <!--  Top N ファイルパネル  -->
+        <Border Grid.Row="3"
+                MinHeight="200"
+                Background="#181825"
+                BorderBrush="#313244"
+                BorderThickness="0,1,0,0"
+                IsVisible="{Binding IsTopNVisible}">
+            <Grid RowDefinitions="36,*">
+
+                <!--  ヘッダー  -->
+                <Grid Grid.Row="0" Margin="12,0" ColumnDefinitions="*,Auto">
+                    <TextBlock x:CompileBindings="False"
+                               Grid.Column="0"
+                               VerticalAlignment="Center"
+                               FontSize="12"
+                               Foreground="#A6ADC8">
+                        <TextBlock.Text>
+                            <MultiBinding StringFormat="📊 大きいファイル Top {0}{1}">
+                                <Binding Path="TopNCount" />
+                                <Binding Path="TopNCurrentFolderOnly"
+                                         Converter="{StaticResource TopNScopeTextConverter}" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal">
+                        <Button Command="{Binding SetTopNCountCommand}"
+                                CommandParameter="10"
+                                Content="10"
+                                Theme="{StaticResource ToolbarButton}" />
+                        <Button Command="{Binding SetTopNCountCommand}"
+                                CommandParameter="20"
+                                Content="20"
+                                Theme="{StaticResource ToolbarButton}" />
+                        <Button Command="{Binding SetTopNCountCommand}"
+                                CommandParameter="50"
+                                Content="50"
+                                Theme="{StaticResource ToolbarButton}" />
+                        <Border Width="1"
+                                Margin="4,6"
+                                Background="#45475A" />
+                        <Button Command="{Binding ToggleTopNScopeCommand}"
+                                Content="📁 現在のフォルダーのみ"
+                                Classes.scope-active="{Binding TopNCurrentFolderOnly}"
+                                Theme="{StaticResource ToolbarButton}" />
+                    </StackPanel>
+                </Grid>
+
+                <!--  ファイルリスト  -->
+                <ListBox Grid.Row="1"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ItemContainerTheme="{StaticResource FolderListItem}"
+                         ItemsSource="{Binding TopNFiles}">
+                    <ListBox.ContextMenu>
+                        <ContextMenu x:CompileBindings="False">
+                            <MenuItem Header="📂 エクスプローラーで開く"
+                                      Command="{Binding OpenTopNInExplorerCommand}"
+                                      CommandParameter="{Binding $parent[ContextMenu].PlacementTarget.SelectedItem}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:TopNFileItem">
+                            <Grid Margin="0,2" ColumnDefinitions="28,20,*,120,72">
+                                <TextBlock Grid.Column="0"
+                                           Margin="0,0,4,0"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           FontSize="11"
+                                           Foreground="#6C7086"
+                                           Text="{Binding Rank}" />
+                                <TextBlock Grid.Column="1"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Text="📄" />
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock FontSize="12"
+                                               Foreground="#CDD6F4"
+                                               Text="{Binding Name}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock FontSize="10"
+                                               Foreground="#6C7086"
+                                               Text="{Binding Path}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding Path}" />
+                                </StackPanel>
+                                <ProgressBar Grid.Column="3"
+                                             Height="4"
+                                             Margin="8,0"
+                                             VerticalAlignment="Center"
+                                             Foreground="#89DCEB"
+                                             Maximum="1"
+                                             Minimum="0"
+                                             Theme="{StaticResource SlimProgressBar}"
+                                             Value="{Binding BarWidthRatio}" />
+                                <TextBlock Grid.Column="4"
+                                           VerticalAlignment="Center"
+                                           FontSize="11"
+                                           Foreground="#89DCEB"
+                                           Text="{Binding SizeText}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
         <!--  ステータスバー  -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="4"
                 Background="#11111B"
                 BorderBrush="#313244"
                 BorderThickness="0,1,0,0">
@@ -194,6 +352,22 @@
                            Foreground="#6C7086"
                            Text="{Binding StatusText}" />
             </Grid>
+        </Border>
+
+        <!--  D&D オーバーレイ  -->
+        <Border Grid.Row="0"
+                Grid.RowSpan="5"
+                Background="#CC1E1E2E"
+                BorderBrush="#89DCEB"
+                BorderThickness="3"
+                IsHitTestVisible="False"
+                IsVisible="{Binding IsDragOver}">
+            <TextBlock HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="22"
+                       FontWeight="Bold"
+                       Foreground="#89DCEB"
+                       Text="📁 フォルダーをドロップ" />
         </Border>
     </Grid>
 </Window>
