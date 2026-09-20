@@ -1,6 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
 using ScottPlot.Plottables;
 using SpaceRadar.Models;
 using SpaceRadar.Utilities;
@@ -10,6 +13,9 @@ namespace SpaceRadar.Views;
 
 public partial class MainWindow : Window
 {
+    private const int DwmwaCaptionColor = 35;
+    private const int DwmwaTextColor = 36;
+
     private readonly MainViewModel _viewModel;
     private Pie? _pie;
     private ScottPlot.Color[] _originalSliceColors = [];
@@ -38,6 +44,9 @@ public partial class MainWindow : Window
         _viewModel = new MainViewModel();
         DataContext = _viewModel;
 
+        SourceInitialized += MainWindow_SourceInitialized;
+        SystemParameters.StaticPropertyChanged += SystemParameters_StaticPropertyChanged;
+
         SetupPlot();
 
         _viewModel.DisplayChildren.CollectionChanged += (_, e) =>
@@ -49,7 +58,61 @@ public partial class MainWindow : Window
             RefreshChart();
         };
         _viewModel.IsTopNVisible.Subscribe(UpdateTopNPanelVisibility);
-        Closed += (_, _) => _viewModel.Dispose();
+        Closed += MainWindow_Closed;
+    }
+
+    [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(nint hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
+    private void MainWindow_SourceInitialized(object? sender, EventArgs e)
+    {
+        ApplyWindowsThemeToTitleBar();
+    }
+
+    private void SystemParameters_StaticPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SystemParameters.WindowGlassBrush))
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, ApplyWindowsThemeToTitleBar);
+        }
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        SystemParameters.StaticPropertyChanged -= SystemParameters_StaticPropertyChanged;
+        _viewModel.Dispose();
+    }
+
+    private void ApplyWindowsThemeToTitleBar()
+    {
+        if (SystemParameters.WindowGlassBrush is not SolidColorBrush glassBrush)
+        {
+            return;
+        }
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == nint.Zero)
+        {
+            return;
+        }
+
+        var color = glassBrush.Color;
+        int captionColor = ToColorRef(color);
+        _ = DwmSetWindowAttribute(hwnd, DwmwaCaptionColor, ref captionColor, sizeof(int));
+
+        int textColor = GetTitleTextColorRef(color);
+        _ = DwmSetWindowAttribute(hwnd, DwmwaTextColor, ref textColor, sizeof(int));
+    }
+
+    private static int ToColorRef(Color color)
+    {
+        return color.R | (color.G << 8) | (color.B << 16);
+    }
+
+    private static int GetTitleTextColorRef(Color backgroundColor)
+    {
+        double brightness = (backgroundColor.R * 0.299) + (backgroundColor.G * 0.587) + (backgroundColor.B * 0.114);
+        return brightness >= 140 ? 0x000000 : 0xFFFFFF;
     }
 
     private void UpdateTopNPanelVisibility(bool visible)
@@ -178,7 +241,8 @@ public partial class MainWindow : Window
         }
 
         var pos = e.GetPosition(WpfPlot);
-        var pixel = new ScottPlot.Pixel((float)pos.X, (float)pos.Y);
+        var dpi = VisualTreeHelper.GetDpi(WpfPlot);
+        var pixel = new ScottPlot.Pixel((float)(pos.X * dpi.DpiScaleX), (float)(pos.Y * dpi.DpiScaleY));
         var coords = WpfPlot.Plot.GetCoordinates(pixel);
 
         double x = coords.X;
@@ -248,14 +312,31 @@ public partial class MainWindow : Window
             _ignoreNextMouseLeftButtonDown = true;
             _ = _viewModel.DrillDownAsync(item);
         }
+        else if (CanExpandFiles(item))
+        {
+            _ignoreNextMouseLeftButtonDown = true;
+            _ = _viewModel.ExpandFilesAsync(item);
+        }
     }
 
     private void FolderListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (FolderListBox.SelectedItem is FolderItem item && item.IsDirectory)
+        if (FolderListBox.SelectedItem is FolderItem item)
         {
-            _ = _viewModel.DrillDownAsync(item);
+            if (item.IsDirectory)
+            {
+                _ = _viewModel.DrillDownAsync(item);
+            }
+            else if (CanExpandFiles(item))
+            {
+                _ = _viewModel.ExpandFilesAsync(item);
+            }
         }
+    }
+
+    private static bool CanExpandFiles(FolderItem item)
+    {
+        return !item.IsDirectory && item.Name == "[ƒtƒ@ƒCƒ‹]";
     }
 
     protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)

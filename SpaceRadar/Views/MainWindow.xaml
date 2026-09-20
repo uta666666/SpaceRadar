@@ -125,13 +125,13 @@
                     Style="{StaticResource ToolbarButton}" />
 
                 <Button
-                    Grid.Column="1"
+                    Grid.Column="2"
                     Command="{Binding NavigateUpCommand}"
                     Content="⬆ 上へ"
                     Style="{StaticResource ToolbarButton}" />
 
                 <Button
-                    Grid.Column="2"
+                    Grid.Column="1"
                     Command="{Binding ToggleTopNCommand}"
                     Content="📊 Top N">
                     <Button.Style>
@@ -211,7 +211,7 @@
                         Margin="12,10,12,6"
                         FontSize="12"
                         Foreground="#A6ADC8"
-                        Text="フォルダー一覧" />
+                        Text="{Binding ListTitleText.Value}" />
 
                     <ListBox
                         x:Name="FolderListBox"

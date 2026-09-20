@@ -15,6 +15,7 @@ public class MainViewModel : IDisposable
     private readonly Stack<FolderItem> _navigationStack = new();
     private CancellationTokenSource? _cts;
     private FolderItem? _rootFolder;
+    private DateTime _lastProgressUpdateUtc = DateTime.MinValue;
 
     // --- Properties ---
     public ReactivePropertySlim<FolderItem?> CurrentFolder { get; } = new();
@@ -23,6 +24,7 @@ public class MainViewModel : IDisposable
     public ReactivePropertySlim<string> StatusText { get; } = new("フォルダーを選択してください");
     public ReactivePropertySlim<string> BreadcrumbPath { get; } = new(string.Empty);
     public ReactivePropertySlim<string> TotalSizeText { get; } = new(string.Empty);
+    public ReactivePropertySlim<string> ListTitleText { get; } = new("フォルダー一覧");
     public ReactivePropertySlim<bool> CanNavigateUp { get; } = new(false);
     public ReactivePropertySlim<bool> IsDragOver { get; } = new(false);
     public ReactivePropertySlim<bool> IsTopNVisible { get; } = new(false);
@@ -88,8 +90,17 @@ public class MainViewModel : IDisposable
 
         _scanService.ScanProgressChanged += path =>
         {
+            var now = DateTime.UtcNow;
+            if ((now - _lastProgressUpdateUtc).TotalMilliseconds < 100)
+            {
+                return;
+            }
+
+            _lastProgressUpdateUtc = now;
             System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
-                StatusText.Value = $"スキャン中: {path}");
+            {
+                StatusText.Value = $"スキャン中: {path}";
+            });
         };
     }
 
@@ -123,13 +134,51 @@ public class MainViewModel : IDisposable
             return;
         }
 
+        await EnsureFolderLoadedAsync(item);
+
         if (CurrentFolder.Value != null)
         {
             _navigationStack.Push(CurrentFolder.Value);
         }
 
-        // 既にスキャン済みの子フォルダーにドリルダウン
         await LoadFolderAsync(item);
+    }
+
+    public async Task ExpandFilesAsync(FolderItem item)
+    {
+        if (item.IsDirectory || item.Name != "[ファイル]")
+        {
+            return;
+        }
+
+        if (CurrentFolder.Value == null)
+        {
+            return;
+        }
+
+        _navigationStack.Push(CurrentFolder.Value);
+        await LoadFileAsync(CurrentFolder.Value);
+    }
+
+    private async Task EnsureFolderLoadedAsync(FolderItem folder)
+    {
+        if (folder.IsLoaded)
+        {
+            return;
+        }
+
+        IsScanning.Value = true;
+        StatusText.Value = "詳細を読み込み中...";
+        _lastProgressUpdateUtc = DateTime.MinValue;
+
+        try
+        {
+            await _scanService.LoadChildrenAsync(folder, _cts?.Token ?? CancellationToken.None);
+        }
+        finally
+        {
+            IsScanning.Value = false;
+        }
     }
 
     private void NavigateUp()
@@ -166,6 +215,7 @@ public class MainViewModel : IDisposable
 
         IsScanning.Value = true;
         StatusText.Value = "スキャン開始...";
+        _lastProgressUpdateUtc = DateTime.MinValue;
         DisplayChildren.Clear();
         TotalSizeText.Value = string.Empty;
         BreadcrumbPath.Value = path;
@@ -202,6 +252,9 @@ public class MainViewModel : IDisposable
         CanNavigateUp.Value = _navigationStack.Count > 0;
 
         DisplayChildren.Clear();
+        ListTitleText.Value = "フォルダー一覧";
+
+        bool isVirtualOtherFolder = folder.IsVirtualOtherFolder;
 
         // ディレクトリのみ抽出し、サイズ降順でソート
         var dirs = folder.Children
@@ -209,18 +262,35 @@ public class MainViewModel : IDisposable
             .OrderByDescending(c => c.Size)
             .ToList();
 
+        if (isVirtualOtherFolder)
+        {
+            foreach (var d in dirs)
+            {
+                DisplayChildren.Add(d);
+            }
+
+            StatusText.Value = $"完了 — {folder.Children.Count} アイテム";
+
+            if (IsTopNVisible.Value && TopNCurrentFolderOnly.Value)
+            {
+                BuildTopNFiles();
+            }
+
+            return Task.CompletedTask;
+        }
+
         // 小さいフォルダーをまとめる（上位10件以外）
         const int maxSlices = 10;
         var top = dirs.Take(maxSlices).ToList();
         var rest = dirs.Skip(maxSlices).ToList();
 
         foreach (var d in top)
+        {
             DisplayChildren.Add(d);
+        }
 
         // ファイルサイズ（直下ファイルの合計）
-        long directFileSize = folder.Children
-            .Where(c => !c.IsDirectory)
-            .Sum(c => c.Size);
+        long directFileSize = folder.DirectFileSize;
 
         if (directFileSize > 0)
         {
@@ -238,14 +308,60 @@ public class MainViewModel : IDisposable
             long otherSize = rest.Sum(c => c.Size);
             DisplayChildren.Add(new FolderItem
             {
-                Name = "その他",
-                Path = folder.Path,
+                Name = "[その他]",
+                Path = $"{folder.Path.TrimEnd('\\')}\\[その他]",
                 Size = otherSize,
-                IsDirectory = false
+                IsDirectory = true,
+                IsLoaded = true,
+                IsVirtualOtherFolder = true,
+                Children = rest,
+                Parent = folder
             });
         }
 
         StatusText.Value = $"完了 — {folder.Children.Count} アイテム";
+
+        if (IsTopNVisible.Value && TopNCurrentFolderOnly.Value)
+        {
+            BuildTopNFiles();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task LoadFileAsync(FolderItem folder)
+    {
+        CurrentFolder.Value = folder;
+        BreadcrumbPath.Value = $"{folder.Path.TrimEnd('\\')}\\[ファイル]";
+        CanNavigateUp.Value = _navigationStack.Count > 0;
+
+        DisplayChildren.Clear();
+        ListTitleText.Value = "ファイル一覧";
+
+        // ファイルのみ抽出し、サイズ降順でソート
+        var files = Directory.EnumerateFiles(folder.Path)
+            .Select(path =>
+            {
+                var info = new FileInfo(path);
+                return new FolderItem
+                {
+                    Name = Path.GetFileName(path),
+                    Path = path,
+                    Size = info.Length,
+                    IsDirectory = false,
+                    Parent = folder
+                };
+            })
+            .OrderByDescending(c => c.Size)
+            .ToList();
+
+        foreach (var file in files)
+        {
+            DisplayChildren.Add(file);
+        }
+
+        TotalSizeText.Value = FileSizeFormatter.FormatSize(files.Sum(f => f.Size));
+        StatusText.Value = $"完了 — {files.Count} アイテム";
 
         if (IsTopNVisible.Value && TopNCurrentFolderOnly.Value)
         {
@@ -264,24 +380,6 @@ public class MainViewModel : IDisposable
         }
     }
 
-    private static IEnumerable<FolderItem> FlattenFiles(FolderItem folder)
-    {
-        foreach (var child in folder.Children)
-        {
-            if (!child.IsDirectory)
-            {
-                yield return child;
-            }
-            else
-            {
-                foreach (var f in FlattenFiles(child))
-                {
-                    yield return f;
-                }
-            }
-        }
-    }
-
     private void BuildTopNFiles()
     {
         TopNFiles.Clear();
@@ -291,10 +389,7 @@ public class MainViewModel : IDisposable
             return;
         }
 
-        var files = FlattenFiles(root)
-            .OrderByDescending(f => f.Size)
-            .Take(TopNCount.Value)
-            .ToList();
+        var files = _scanService.GetTopNFiles(root.Path, TopNCount.Value, _cts?.Token ?? CancellationToken.None);
 
         long maxSize = files.Count > 0 ? files[0].Size : 1;
 
@@ -321,6 +416,7 @@ public class MainViewModel : IDisposable
         StatusText.Dispose();
         BreadcrumbPath.Dispose();
         TotalSizeText.Dispose();
+        ListTitleText.Dispose();
         CanNavigateUp.Dispose();
         IsDragOver.Dispose();
         IsTopNVisible.Dispose();

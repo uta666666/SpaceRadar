@@ -8,7 +8,10 @@ public class FolderItem : INotifyPropertyChanged
     public string Name { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
     public long Size { get; set; }
+    public long DirectFileSize { get; set; }
     public bool IsDirectory { get; set; }
+    public bool IsLoaded { get; set; }
+    public bool IsVirtualOtherFolder { get; set; }
     public List<FolderItem> Children { get; set; } = new();
     public FolderItem? Parent { get; set; }
 
