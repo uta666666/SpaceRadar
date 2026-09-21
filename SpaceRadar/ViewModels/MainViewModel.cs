@@ -167,6 +167,11 @@ public class MainViewModel : IDisposable
             return;
         }
 
+        if (IsScanning.Value)
+        {
+            return;
+        }
+
         IsScanning.Value = true;
         StatusText.Value = "詳細を読み込み中...";
         _lastProgressUpdateUtc = DateTime.MinValue;
@@ -212,6 +217,11 @@ public class MainViewModel : IDisposable
     {
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
+
+        if (IsScanning.Value)
+        {
+            return;
+        }
 
         IsScanning.Value = true;
         StatusText.Value = "スキャン開始...";

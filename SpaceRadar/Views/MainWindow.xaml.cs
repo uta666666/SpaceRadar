@@ -13,14 +13,13 @@ namespace SpaceRadar.Views;
 
 public partial class MainWindow : Window
 {
-    private const int DwmwaCaptionColor = 35;
-    private const int DwmwaTextColor = 36;
-
     private readonly MainViewModel _viewModel;
     private Pie? _pie;
     private ScottPlot.Color[] _originalSliceColors = [];
     private double _topNPanelHeight = 180;
     private bool _ignoreNextMouseLeftButtonDown = false;
+    private const string IconMaximize = "\uE922";
+    private const string IconRestore = "\uE923";
 
     // Catppuccin Mocha palette
     private static readonly System.Drawing.Color[] SliceColors =
@@ -44,9 +43,6 @@ public partial class MainWindow : Window
         _viewModel = new MainViewModel();
         DataContext = _viewModel;
 
-        SourceInitialized += MainWindow_SourceInitialized;
-        SystemParameters.StaticPropertyChanged += SystemParameters_StaticPropertyChanged;
-
         SetupPlot();
 
         _viewModel.DisplayChildren.CollectionChanged += (_, e) =>
@@ -61,58 +57,9 @@ public partial class MainWindow : Window
         Closed += MainWindow_Closed;
     }
 
-    [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(nint hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
-
-    private void MainWindow_SourceInitialized(object? sender, EventArgs e)
-    {
-        ApplyWindowsThemeToTitleBar();
-    }
-
-    private void SystemParameters_StaticPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(SystemParameters.WindowGlassBrush))
-        {
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, ApplyWindowsThemeToTitleBar);
-        }
-    }
-
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
-        SystemParameters.StaticPropertyChanged -= SystemParameters_StaticPropertyChanged;
         _viewModel.Dispose();
-    }
-
-    private void ApplyWindowsThemeToTitleBar()
-    {
-        if (SystemParameters.WindowGlassBrush is not SolidColorBrush glassBrush)
-        {
-            return;
-        }
-
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == nint.Zero)
-        {
-            return;
-        }
-
-        var color = glassBrush.Color;
-        int captionColor = ToColorRef(color);
-        _ = DwmSetWindowAttribute(hwnd, DwmwaCaptionColor, ref captionColor, sizeof(int));
-
-        int textColor = GetTitleTextColorRef(color);
-        _ = DwmSetWindowAttribute(hwnd, DwmwaTextColor, ref textColor, sizeof(int));
-    }
-
-    private static int ToColorRef(Color color)
-    {
-        return color.R | (color.G << 8) | (color.B << 16);
-    }
-
-    private static int GetTitleTextColorRef(Color backgroundColor)
-    {
-        double brightness = (backgroundColor.R * 0.299) + (backgroundColor.G * 0.587) + (backgroundColor.B * 0.114);
-        return brightness >= 140 ? 0x000000 : 0xFFFFFF;
     }
 
     private void UpdateTopNPanelVisibility(bool visible)
@@ -295,6 +242,11 @@ public partial class MainWindow : Window
 
     private void WpfPlot_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (_viewModel.IsScanning.Value)
+        {
+            return;
+        }
+
         if (e.ChangedButton != MouseButton.Left)
         {
             return;
@@ -321,6 +273,11 @@ public partial class MainWindow : Window
 
     private void FolderListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (_viewModel.IsScanning.Value)
+        {
+            return;
+        }
+
         if (FolderListBox.SelectedItem is FolderItem item)
         {
             if (item.IsDirectory)
@@ -395,5 +352,64 @@ public partial class MainWindow : Window
         }
 
         _ = _viewModel.ScanDroppedFolderAsync(folder);
+    }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        else
+        {
+            WindowState = WindowState.Maximized;
+        }
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void Window_StateChanged(object sender, EventArgs e)
+    {
+        UpdateWindowMarginForState();
+        UpdateCaptionButtonIcons();
+    }
+
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        UpdateWindowMarginForState();
+        UpdateCaptionButtonIcons();
+    }
+
+    private void UpdateWindowMarginForState()
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            var border = SystemParameters.WindowResizeBorderThickness;
+            WindowGrid.Margin = new Thickness(border.Left, border.Top, border.Right, border.Bottom);
+        }
+        else
+        {
+            WindowGrid.Margin = new Thickness(0);
+        }
+    }
+
+    private void UpdateCaptionButtonIcons()
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            MaximizeButton.Content = IconRestore;
+        }
+        else
+        {
+            MaximizeButton.Content = IconMaximize;
+        }
     }
 }
